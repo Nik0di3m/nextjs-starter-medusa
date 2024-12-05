@@ -108,3 +108,28 @@ export const declineTransferRequest = async (id: string, token: string) => {
     .then(({ order }) => ({ success: true, error: null, order }))
     .catch((err) => ({ success: false, error: err.message, order: null }))
 }
+interface CarType {
+  is_mixed: boolean
+  is_digital: boolean
+}
+export const cartHasDigitalItems = async (
+  cart: HttpTypes.StoreCart
+): Promise<CarType> => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/digital-products/is-digital`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key":
+          process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+      },
+      body: JSON.stringify({
+        digitalProductIds: cart.items?.map((i) => i.variant_id),
+      }),
+    }
+  )
+
+  return response.json()
+}

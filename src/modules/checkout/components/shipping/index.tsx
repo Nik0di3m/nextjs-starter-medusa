@@ -2,6 +2,7 @@
 
 import { RadioGroup, Radio } from "@headlessui/react"
 import { setShippingMethod } from "@lib/data/cart"
+import { cartHasDigitalItems } from "@lib/data/orders"
 import { convertToLocale } from "@lib/util/money"
 import { CheckCircleSolid } from "@medusajs/icons"
 import { HttpTypes } from "@medusajs/types"
@@ -15,17 +16,24 @@ import { useEffect, useState } from "react"
 type ShippingProps = {
   cart: HttpTypes.StoreCart
   availableShippingMethods: HttpTypes.StoreCartShippingOption[] | null
+  hasDigitalItem: {
+    is_mixed: boolean
+    is_digital: boolean
+  }
 }
 
 const Shipping: React.FC<ShippingProps> = ({
   cart,
   availableShippingMethods,
+  hasDigitalItem,
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [shippingMethodId, setShippingMethodId] = useState<string | null>(
     cart.shipping_methods?.at(-1)?.shipping_option_id || null
   )
+  // TODO: Check if cart has digital items and delete shipping method for them
+  console.log("cart", cart)
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -109,33 +117,46 @@ const Shipping: React.FC<ShippingProps> = ({
               value={shippingMethodId}
               onChange={handleSetShippingMethod}
             >
-              {availableShippingMethods?.map((option) => {
-                return (
-                  <Radio
-                    key={option.id}
-                    value={option.id}
-                    data-testid="delivery-option-radio"
-                    className={clx(
-                      "flex items-center justify-between text-small-regular cursor-pointer py-4 border rounded-rounded px-8 mb-2 hover:shadow-borders-interactive-with-active",
-                      {
-                        "border-ui-border-interactive":
-                          option.id === shippingMethodId,
-                      }
-                    )}
-                  >
-                    <div className="flex items-center gap-x-4">
-                      <MedusaRadio checked={option.id === shippingMethodId} />
-                      <span className="text-base-regular">{option.name}</span>
-                    </div>
-                    <span className="justify-self-end text-ui-fg-base">
-                      {convertToLocale({
-                        amount: option.amount!,
-                        currency_code: cart?.currency_code,
-                      })}
-                    </span>
-                  </Radio>
-                )
-              })}
+              {availableShippingMethods
+                ?.filter((shipping) => {
+                  if (hasDigitalItem.is_mixed) {
+                    return shipping.provider_id !== "digital_digital"
+                  } else if (hasDigitalItem.is_digital) {
+                    return shipping.provider_id === "digital_digital"
+                  } else if (
+                    !hasDigitalItem.is_digital &&
+                    !hasDigitalItem.is_mixed
+                  ) {
+                    return shipping.provider_id !== "digital_digital"
+                  }
+                })
+                .map((option) => {
+                  return (
+                    <Radio
+                      key={option.id}
+                      value={option.id}
+                      data-testid="delivery-option-radio"
+                      className={clx(
+                        "flex items-center justify-between text-small-regular cursor-pointer py-4 border rounded-rounded px-8 mb-2 hover:shadow-borders-interactive-with-active",
+                        {
+                          "border-ui-border-interactive":
+                            option.id === shippingMethodId,
+                        }
+                      )}
+                    >
+                      <div className="flex items-center gap-x-4">
+                        <MedusaRadio checked={option.id === shippingMethodId} />
+                        <span className="text-base-regular">{option.name}</span>
+                      </div>
+                      <span className="justify-self-end text-ui-fg-base">
+                        {convertToLocale({
+                          amount: option.amount!,
+                          currency_code: cart?.currency_code,
+                        })}
+                      </span>
+                    </Radio>
+                  )
+                })}
             </RadioGroup>
           </div>
 

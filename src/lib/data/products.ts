@@ -6,7 +6,8 @@ import { HttpTypes } from "@medusajs/types"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
 import { getAuthHeaders, getCacheOptions } from "./cookies"
 import { getRegion } from "./regions"
-
+import { cache } from "react"
+import { Brand } from "types/global"
 export const getProductsById = async ({
   ids,
   regionId,
@@ -29,7 +30,7 @@ export const getProductsById = async ({
         id: ids,
         region_id: regionId,
         fields:
-          "*variants,*variants.calculated_price,*variants.inventory_quantity",
+          "*variants.calculated_price,+variants.inventory_quantity,+metadata,+varaints,+brand,*variants.digital_product",
       },
       headers,
       next,
@@ -53,13 +54,38 @@ export const getProductByHandle = async (handle: string, regionId: string) => {
         handle,
         region_id: regionId,
         fields:
-          "*variants.calculated_price,+variants.inventory_quantity,+metadata,+tags",
+          "*variants.calculated_price,+variants.inventory_quantity,+metadata,+varaints,+brand,*variants.digital_product",
       },
       headers,
       next,
     })
     .then(({ products }) => products[0])
 }
+
+export const getProductBrand = cache(async function ({
+  productId,
+}: {
+  productId: string
+}): Promise<Brand> {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/product-to-brand/${productId}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "x-publishable-api-key":
+          process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY || "temp",
+      },
+    }
+  ).then((res) => res.json())
+
+  if (!res.productBrand || !res.productBrand.length) {
+    throw new Error("Brand not found")
+  }
+
+  const brand = res.productBrand[0].brand
+  return brand as Brand
+})
 
 export const listProducts = async ({
   pageParam = 1,
@@ -173,3 +199,26 @@ export const listProductsWithSort = async ({
     queryParams,
   }
 }
+
+export const getDigitalProductPreview = cache(async function ({
+  id,
+}: {
+  id: string
+}) {
+  const { previews } = await fetch(
+    `${process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}/store/digital-products/${id}/preview`,
+    {
+      credentials: "include",
+
+      headers: {
+        "x-publishable-api-key": process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY,
+      },
+    }
+  ).then((res) => res.json())
+
+  // for simplicity, return only the first preview url
+
+  // instead you can show all the preview media to the customer
+
+  return previews.length ? previews[0].url : ""
+})

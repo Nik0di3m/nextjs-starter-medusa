@@ -11,20 +11,49 @@ import { notFound } from "next/navigation"
 import ProductActionsWrapper from "./product-actions-wrapper"
 import { HttpTypes } from "@medusajs/types"
 
+import { Text } from "@medusajs/ui"
+import { Brand } from "types/global"
+import { ProductReview } from "@modules/review/types"
+import {
+  formatDateAvailableAt,
+  isFutureDateAvailableAt,
+} from "@lib/util/helpers"
+import ProductReviews from "@modules/review/components/ProductReview"
+
 type ProductTemplateProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   countryCode: string
+  brand: Brand
+  productReviews: {
+    reviews: {
+      id: string
+      review: ProductReview[]
+    }[]
+    average_rating: number
+  }
+  customerHeader: {
+    authorization: string
+  } | null
 }
 
 const ProductTemplate: React.FC<ProductTemplateProps> = ({
   product,
+  productReviews,
   region,
   countryCode,
+  brand,
+  customerHeader,
 }) => {
   if (!product || !product.id) {
     return notFound()
   }
+
+  console.log("ProductTemplate")
+
+  const reviewFlatMap = productReviews?.reviews?.length
+    ? productReviews.reviews.flatMap((review) => review.review)
+    : []
 
   return (
     <>
@@ -32,27 +61,57 @@ const ProductTemplate: React.FC<ProductTemplateProps> = ({
         className="content-container flex flex-col small:flex-row small:items-start py-6 relative"
         data-testid="product-container"
       >
-        <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-6">
-          <ProductInfo product={product} />
-          <ProductTabs product={product} />
-        </div>
         <div className="block w-full relative">
           <ImageGallery images={product?.images || []} />
         </div>
-        <div className="flex flex-col small:sticky small:top-48 small:py-0 small:max-w-[300px] w-full py-8 gap-y-12">
-          <ProductOnboardingCta />
+        <div className="flex flex-col small:sticky small:top-48 small:py-0 w-full py-8 gap-y-12">
+          {typeof product?.metadata?.availableAt === "number" && (
+            <div className="bg-cyan-500 p-1 w-auto self-start flex">
+              <Text className="text-sm font-semibold text-white">
+                Dostępna od:{" "}
+                {formatDateAvailableAt(product.metadata.availableAt)}
+              </Text>
+            </div>
+          )}
+
+          <pre>{/* <code>{JSON.stringify(reviewFlatMap)}</code> */}</pre>
+
+          <ProductInfo
+            product={product}
+            brand={brand}
+            average_rating={productReviews?.average_rating}
+          />
+          <ProductTabs product={product} brand={brand} />
+
+          {/* <ProductOnboardingCta /> */}
           <Suspense
             fallback={
               <ProductActions
                 disabled={true}
-                product={product}
+                product={product as any}
                 region={region}
               />
             }
           >
-            <ProductActionsWrapper id={product.id} region={region} />
+            <ProductActionsWrapper
+              id={product.id}
+              region={region}
+              isDisabledByAvailableAt={
+                product?.metadata?.availableAt &&
+                isFutureDateAvailableAt(product?.metadata?.availableAt)
+                  ? true
+                  : false
+              }
+            />
           </Suspense>
         </div>
+      </div>
+      <div className="content-container my-16 small:my-32">
+        <ProductReviews
+          reviews={reviewFlatMap}
+          customerHeader={customerHeader}
+          productId={product.id}
+        />
       </div>
       <div
         className="content-container my-16 small:my-32"

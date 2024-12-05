@@ -1,10 +1,12 @@
 import { Metadata } from "next"
 import { notFound } from "next/navigation"
-
 import ProductTemplate from "@modules/products/templates"
 import { getRegion, listRegions } from "@lib/data/regions"
-import { getProductByHandle } from "@lib/data/products"
+import { getProductBrand, getProductByHandle } from "@lib/data/products"
 import { sdk } from "@lib/config"
+import Hero from "@modules/home/components/hero"
+import { getProductReviews } from "@modules/review/lib"
+import { getAuthHeaders } from "@lib/data/cookies"
 
 type Props = {
   params: Promise<{ countryCode: string; handle: string }>
@@ -45,7 +47,7 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {
-  const params = await props.params;
+  const params = await props.params
   const { handle } = params
   const region = await getRegion(params.countryCode)
 
@@ -71,7 +73,7 @@ export async function generateMetadata(props: Props): Promise<Metadata> {
 }
 
 export default async function ProductPage(props: Props) {
-  const params = await props.params;
+  const params = await props.params
   const region = await getRegion(params.countryCode)
 
   if (!region) {
@@ -79,15 +81,29 @@ export default async function ProductPage(props: Props) {
   }
 
   const pricedProduct = await getProductByHandle(params.handle, region.id)
+  const [productBrand, productReviews] = await Promise.all([
+    getProductBrand({ productId: pricedProduct.id }),
+    getProductReviews(pricedProduct.id),
+  ])
+
   if (!pricedProduct) {
     notFound()
   }
 
+  console.log("PRODUCT PAGE>>>", productReviews)
+  const auth = await getAuthHeaders()
+  console.log("AUTH>>>", auth)
+
   return (
-    <ProductTemplate
-      product={pricedProduct}
-      region={region}
-      countryCode={params.countryCode}
-    />
+    <>
+      <ProductTemplate
+        product={pricedProduct}
+        productReviews={productReviews}
+        brand={productBrand}
+        region={region}
+        countryCode={params.countryCode}
+        customerHeader={(auth as any) || null}
+      />
+    </>
   )
 }

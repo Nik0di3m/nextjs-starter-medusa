@@ -1,4 +1,5 @@
 import { listCartShippingMethods } from "@lib/data/fulfillment"
+import { cartHasDigitalItems } from "@lib/data/orders"
 import { listCartPaymentMethods } from "@lib/data/payment"
 import { HttpTypes } from "@medusajs/types"
 import Addresses from "@modules/checkout/components/addresses"
@@ -19,6 +20,7 @@ export default async function CheckoutForm({
 
   const shippingMethods = await listCartShippingMethods(cart.id)
   const paymentMethods = await listCartPaymentMethods(cart.region?.id ?? "")
+  const hasDigitalItem = await cartHasDigitalItems(cart)
 
   if (!shippingMethods || !paymentMethods) {
     return null
@@ -32,7 +34,11 @@ export default async function CheckoutForm({
         </div>
 
         <div>
-          <Shipping cart={cart} availableShippingMethods={shippingMethods} />
+          <Shipping
+            cart={cart}
+            availableShippingMethods={shippingMethods}
+            hasDigitalItem={hasDigitalItem}
+          />
         </div>
 
         <div>

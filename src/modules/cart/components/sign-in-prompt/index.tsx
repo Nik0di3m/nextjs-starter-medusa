@@ -6,16 +6,20 @@ const SignInPrompt = () => {
     <div className="bg-white flex items-center justify-between">
       <div>
         <Heading level="h2" className="txt-xlarge">
-          Already have an account?
+          Posiadasz konto?
         </Heading>
         <Text className="txt-medium text-ui-fg-subtle mt-2">
-          Sign in for a better experience.
+          Zaloguj się, dla lepszych doświadczeń zakupowych
         </Text>
       </div>
       <div>
         <LocalizedClientLink href="/account">
-          <Button variant="secondary" className="h-10" data-testid="sign-in-button">
-            Sign in
+          <Button
+            variant="primary"
+            className="h-10 bg-[#ffc800] text-black font-bold"
+            data-testid="sign-in-button "
+          >
+            Zaloguj się
           </Button>
         </LocalizedClientLink>
       </div>

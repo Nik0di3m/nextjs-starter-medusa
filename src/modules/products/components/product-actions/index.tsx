@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@medusajs/ui"
+import { Button, clx, Text } from "@medusajs/ui"
 import { isEqual } from "lodash"
 import { useParams } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -13,14 +13,36 @@ import MobileActions from "./mobile-actions"
 import ProductPrice from "../product-price"
 import { addToCart } from "@lib/data/cart"
 import { HttpTypes } from "@medusajs/types"
+import { VariantWithDigitalProduct } from "types/global"
+import { getDigitalProductPreview } from "@lib/data/products"
 
-type ProductActionsProps = {
-  product: HttpTypes.StoreProduct
-  region: HttpTypes.StoreRegion
-  disabled?: boolean
+type ExtendedProductVariant = HttpTypes.StoreProductVariant & {
+  omniPrice?: {
+    lower_price: string
+  }
 }
 
-const optionsAsKeymap = (variantOptions: HttpTypes.StoreProductVariant["options"]) => {
+type ExtendStoreProduct = HttpTypes.StoreProduct & {
+  variants: ExtendedProductVariant[]
+}
+
+type ProductActionsProps = {
+  product: ExtendStoreProduct
+  region: HttpTypes.StoreRegion
+  disabled?: boolean
+  isDisabledManually?: boolean
+}
+
+type ExtendedProductVariantOptions =
+  HttpTypes.StoreProductVariant["options"] & {
+    omniPrice?: {
+      lower_price: string
+    }
+  }
+
+const optionsAsKeymap = (
+  variantOptions: ExtendedProductVariantOptions | null
+) => {
   return variantOptions?.reduce((acc: Record<string, string>, varopt: any) => {
     acc[varopt.option_id] = varopt.value
     return acc
@@ -31,6 +53,7 @@ export default function ProductActions({
   product,
   region,
   disabled,
+  isDisabledManually,
 }: ProductActionsProps) {
   const [options, setOptions] = useState<Record<string, string | undefined>>({})
   const [isAdding, setIsAdding] = useState(false)
@@ -44,7 +67,7 @@ export default function ProductActions({
     }
   }, [product.variants])
 
-  const selectedVariant = useMemo(() => {
+  const selectedVariant: ExtendedProductVariant | undefined = useMemo(() => {
     if (!product.variants || product.variants.length === 0) {
       return
     }
@@ -53,7 +76,7 @@ export default function ProductActions({
       const variantOptions = optionsAsKeymap(v.options)
       return isEqual(variantOptions, options)
     })
-  }, [product.variants, options])
+  }, [product.variants, options]) as VariantWithDigitalProduct
 
   // update the options when a variant is selected
   const setOptionValue = (optionId: string, value: string) => {
@@ -106,6 +129,20 @@ export default function ProductActions({
     setIsAdding(false)
   }
 
+  const handleDownloadPreview = async () => {
+    if (!selectedVariant?.digital_product) {
+      return
+    }
+
+    const downloadUrl = await getDigitalProductPreview({
+      id: selectedVariant?.digital_product.id,
+    })
+
+    if (downloadUrl.length) {
+      window.open(downloadUrl)
+    }
+  }
+
   return (
     <>
       <div className="flex flex-col gap-y-2" ref={actionsRef}>
@@ -133,19 +170,51 @@ export default function ProductActions({
 
         <ProductPrice product={product} variant={selectedVariant} />
 
+        {selectedVariant && (
+          <div className="">
+            <Text>
+              Najniższa cena z ostatnich 30 dni:{" "}
+              {selectedVariant?.omniPrice?.lower_price ?? "Brak danych"}{" "}
+              {selectedVariant.calculated_price?.currency_code}
+            </Text>
+          </div>
+        )}
+
+        {selectedVariant?.digital_product && (
+          <Button
+            onClick={handleDownloadPreview}
+            variant="secondary"
+            className="w-full h-10"
+          >
+            Download Preview
+          </Button>
+        )}
+
         <Button
           onClick={handleAddToCart}
-          disabled={!inStock || !selectedVariant || !!disabled || isAdding}
+          disabled={
+            !inStock ||
+            !selectedVariant ||
+            !!disabled ||
+            isAdding ||
+            !!isDisabledManually
+          }
           variant="primary"
-          className="w-full h-10"
+          className={clx(
+            "w-full h-10 uppercase bg-[#ffc800] text-black font-bold",
+            !selectedVariant && "cursor-not-allowed",
+            !inStock && "cursor-not-allowed",
+            !!disabled && "cursor-not-allowed",
+            isAdding && "cursor-not-allowed"
+          )}
           isLoading={isAdding}
           data-testid="add-product-button"
         >
           {!selectedVariant
-            ? "Select variant"
+            ? "Wybierz wariant"
             : !inStock
-            ? "Out of stock"
-            : "Add to cart"}
+            ? "Brak w magazynie"
+            : "Dodaj do koszyka"}
         </Button>
         <MobileActions
           product={product}

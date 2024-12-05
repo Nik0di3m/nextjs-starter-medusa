@@ -6,6 +6,7 @@ import Thumbnail from "../thumbnail"
 import PreviewPrice from "./price"
 import { getProductsById } from "@lib/data/products"
 import { HttpTypes } from "@medusajs/types"
+import { formatDateAvailableAt, getPriceLabelFromTo } from "@lib/util/helpers"
 
 export default async function ProductPreview({
   product,
@@ -25,25 +26,49 @@ export default async function ProductPreview({
     return null
   }
 
-  const { cheapestPrice } = getProductPrice({
+  const { cheapestPrice, variantPrice } = getProductPrice({
     product: pricedProduct,
   })
 
+  const priceFromTo = pricedProduct.variants
+    ? getPriceLabelFromTo({ variants: pricedProduct.variants })
+    : null
+
   return (
     <LocalizedClientLink href={`/products/${product.handle}`} className="group">
-      <div data-testid="product-wrapper">
+      <div data-testid="product-wrapper" className="relative">
         <Thumbnail
           thumbnail={product.thumbnail}
           images={product.images}
           size="full"
           isFeatured={isFeatured}
         />
-        <div className="flex txt-compact-medium mt-4 justify-between">
-          <Text className="text-ui-fg-subtle" data-testid="product-title">
+        <div className="absolute top-2 left-2 z-20 shadow-sm">
+          {typeof pricedProduct?.metadata?.availableAt === "number" && (
+            <div className="bg-cyan-500 p-1 w-full rounded-sm">
+              <Text className="text-sm font-semibold text-white ">
+                Dostępna od:{" "}
+                {formatDateAvailableAt(pricedProduct.metadata.availableAt)}
+              </Text>
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-center txt-compact-medium mt-4 justify-center text-center">
+          <Text className="text-sm font-bold pb-2" data-testid="product-title">
             {product.title}
           </Text>
-          <div className="flex items-center gap-x-2">
+          {typeof pricedProduct?.metadata?.Author === "string" && (
+            <Text className="pb-1 font-medium italic">
+              Autor: {pricedProduct.metadata.Author}
+            </Text>
+          )}
+          {/* <div className="flex items-center gap-x-2">
             {cheapestPrice && <PreviewPrice price={cheapestPrice} />}
+          </div> */}
+          <div>
+            {priceFromTo && (
+              <Text className="text-sm font-semibold">{priceFromTo}</Text>
+            )}
           </div>
         </div>
       </div>
